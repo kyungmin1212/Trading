@@ -43,12 +43,13 @@
 
         ```
 
+#### References
+- https://www.inflearn.com/course/%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%84%A0%EB%AC%BC-%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%94%A9/dashboard
 ---
 
 ## #2
 
 ### Timestamp를 시간으로 변경하기(밀리세컨드)
-- 참고 : https://github.com/kyungmin1212/Quiz_Study/blob/main/study/1-python.md#22
 
 - timestamp -> date
     ```python
@@ -116,6 +117,5 @@
         '''
         ```
 
-
 #### References
-- https://www.inflearn.com/course/%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%84%A0%EB%AC%BC-%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%94%A9/dashboard
+- https://github.com/kyungmin1212/Quiz_Study/blob/main/study/1-python.md#22
