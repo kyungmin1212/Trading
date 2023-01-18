@@ -1,7 +1,7 @@
 ## Table of Contents
 
 - [데이터 수집](#1)
-
+- [Timestamp를 시간으로 변경하기(밀리세컨드)](#2)
 ---
 ## #1
 
@@ -189,7 +189,7 @@
         while True:
             
             check_count+=1
-            if check_count%100 == 0:
+            if check_count%10 == 0:
                 print(total_df.index[-1])
             
             if utc_end_time <= df.index[-1]:
@@ -225,7 +225,7 @@
                 
             total_df = pd.concat([total_df,df])
             
-        total_df.index = pd.to_datetime(total_df.index, unit='ms') + datetime.timedelta(hours = 9)
+        total_df.index = total_df.index + datetime.timedelta(hours = 9)
         total_df = total_df[:end_time]
         
         coin_name = "".join(coin_name.split("/"))
@@ -286,17 +286,37 @@
         '2023-01-17 18:22:42'
         '''
         ```
+    - pandas를 이용할 경우 pd.to_datetime을 통해 timestamp를 utc 시간 기준 datetime으로 바로 변경 가능
+        ```python
+        df['datetime']=pd.to_datetime(df['datetime'],unit='ms')
+        ```
 - date -> timestamp 
     ```python
     import datetime
     import time
 
-    def date_to_timestamp(str_date):
-
-        dt = datetime.datetime.strptime(str_date,'%Y-%m-%d %H:%M:%S')
-        ts = time.mktime(dt.timetuple())
+    def date_to_timestamp(date,utc=False):
+        """
+        str형태의 date를 timestamp로 만들어주기
+        :params (str or datetime) date : '%Y-%m-%d %H:%M:%S'형태의 데이터. ex)'2023-01-18 23:00:00'
+        :params bool utc : True로 설정할시에 date를 utc 시간이라고 생각
+        :return timestamp시간(단위 ms) ex)1674050400000
+        :rtype int
         
-        return ts*1000
+        ex) date_to_timestamp('2023-01-18 23:00:00') -> 1674050400000
+        """
+        if type(date) == str: # str인 경우 datetime으로 변환해주기
+            dt = datetime.datetime.strptime(date,'%Y-%m-%d %H:%M:%S')
+        else: # datetime으로 들어온경우
+            dt = date
+            
+        # time.mktime은 local 타임 기준으로 timestamp를 변경함. 따라서 utc일 경우 +9시간해서 한국시간으로 설정해줘야함
+        if utc:
+            dt = date + datetime.timedelta(hours = 9)
+        
+        ts = time.mktime(dt.timetuple()) 
+        
+        return int(ts*1000)
 
     date_to_timestamp('2023-01-18 03:22:42')
     '''
@@ -314,3 +334,12 @@
 
 #### References
 - https://github.com/kyungmin1212/Quiz_Study/blob/main/study/1-python.md#22
+
+---
+
+## #3
+
+###
+
+#### References
+- https://www.inflearn.com/course/%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%84%A0%EB%AC%BC-%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%94%A9/dashboard
