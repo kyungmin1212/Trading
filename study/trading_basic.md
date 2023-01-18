@@ -158,7 +158,7 @@
         f'{coin_name}_{period}_{start_time}_{end_time}.csv' 파일로 저장됨
         """
         
-        # 입력 end_time은 한국시간기준이므로 utc기준으로 변경해주기 
+        # 입력 end_time은 한국시간기준이므로 utc기준으로 변경해주기. pd.to_datetime 이 UTC 시간으로 반환하기때문에 UTC 시간 기준으로 체크를 해줘야함 (UTC에서 KST로 변경은 제일 마지막에 함)
         utc_end_time = datetime.datetime.strptime(end_time,'%Y-%m-%d %H:%M:%S') - datetime.timedelta(hours = 9)
         
         binance = ccxt.binance()
