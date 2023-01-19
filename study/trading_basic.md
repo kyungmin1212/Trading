@@ -2,6 +2,7 @@
 
 - [데이터 수집](#1)
 - [Timestamp를 시간으로 변경하기(밀리세컨드)](#2)
+- [TA Library(Technical Analysis)](#3)
 ---
 ## #1
 
@@ -339,7 +340,101 @@
 
 ## #3
 
-###
+### TA Library(Technical Analysis)
+- https://github.com/bukosabino/ta
+- https://technical-analysis-library-in-python.readthedocs.io/en/latest/
+- 설치 : `pip install --upgrade ta`
+- 단순 이동 평균(Simple Moving Average)
+    ```python
+    from ta.trend import SMAIndicator
 
+    df['sma7'] = SMAIndicator(df['close'],window=7).sma_indicator()
+    df['sma25'] = SMAIndicator(df['close'],window=25).sma_indicator()
+    df['sma99'] = SMAIndicator(df['close'],window=99).sma_indicator()
+    df.head(10)
+    ```
+- 가중 이동 평균(Weighted Moving Average)
+    ```python
+    from ta.trend import WMAIndicator
+
+    df['wma7'] = WMAIndicator(df['close'], window=7).wma()
+    df['wma25'] = WMAIndicator(df['close'], window=25).wma()
+    df['wma99'] = WMAIndicator(df['close'], window=99).wma()
+    df.head(10)
+    ```
+- 지수 이동 평균(Exponential Moving Average)
+    ```python
+    from ta.trend import EMAIndicator
+
+    df['ema7'] = EMAIndicator(df['close'], window=7).ema_indicator()
+    df['ema25'] = EMAIndicator(df['close'], window=25).ema_indicator()
+    df['ema99'] = EMAIndicator(df['close'], window=99).ema_indicator()
+    df.head(10)
+    ```
+- MACD
+    - MACD Line : Fast 지수이동평균 - Slow 지수이동평균 (ex. Fast : 12, Slow : 26)
+    - Signal Line : MACD Line Sign 지수이동평균 (ex. Sign : 9)
+    - Diff Line : MACD Line - Signal Line
+    ```python
+    from ta.trend import MACD
+
+    macd = MACD(df['close'], window_slow=26, window_fast=12, window_sign=9)
+    df['macd'] = macd.macd()
+    df['macd_s'] = macd.macd_signal()
+    df['macd_d'] = macd.macd_diff()
+    df.head(10)
+    ```
+- RSI
+    ```python
+    from ta.trend import MACD
+
+    macd = MACD(df['close'], window_slow=26, window_fast=12, window_sign=9)
+    df['macd'] = macd.macd()
+    df['macd_s'] = macd.macd_signal()
+    df['macd_d'] = macd.macd_diff()
+    df.head(10)
+    ```
+- StochRSI 
+    - StochRSI : (현시점 RSI - 최저점 RSI) / (최고점 RSI - 최저점 RSI)  (일반적으로 14기간 사용)
+    - Smooth K : StochRSI의 이동 평균 기간 (% K 라인)
+    - Smooth D : Smooth K의 이동 평균 기간 (% D 라인)
+    ```python
+    from ta.momentum import StochRSIIndicator
+
+    stochRSI = StochRSIIndicator(df['close'], window=14, smooth1=3, smooth2=3)
+    df['srsi'] = stochRSI.stochrsi()
+    df['srsik'] = stochRSI.stochrsi_k()
+    df['srsid'] = stochRSI.stochrsi_d()
+    df.tail(10)
+    ```
+- Bollinger Bands
+    - 상단밴드 : M일 단순 이동 평균(SMA) + (M일 표준편차*N)
+    - 중간선 : M일 단순 이동 평균(SMA)
+    - 하단밴드 : M일 단순 이동 평균(SMA) - (M일 표준편차*N)
+    - M-> window , N-> window_dev
+    ```python
+    from ta.volatility import BollingerBands
+
+    bb = BollingerBands(df['close'], window=20, window_dev=2)
+    df['bh'] = bb.bollinger_hband() #high band
+    df['bhi'] = bb.bollinger_hband_indicator() #high band 보다 가격이 높으면 1, 아니면 0
+    df['bl'] = bb.bollinger_lband() #low band
+    df['bli'] = bb.bollinger_lband_indicator() #low band 보다 가격이 낮으면 1, 아니면 0
+    df['bm'] = bb.bollinger_mavg() #middle band
+    df['bw'] = bb.bollinger_wband() #band width
+
+    df.tail(10)
+    ```
+- VWAP
+    - VWAP = 시그마(대표가격*거래량) / 시그마(거래량) (시그마 기간이 window 값)
+    - 대표가격 : (고가+저가+종가) / 3
+    ```python
+    from ta.volume import VolumeWeightedAveragePrice
+
+    vwap = VolumeWeightedAveragePrice(high=df['high'], low=df['low'], close=df['close'], volume=df['volume'], window=14)
+    df['vwap'] = vwap.volume_weighted_average_price()
+    df.tail(10)
+    ```
 #### References
 - https://www.inflearn.com/course/%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%84%A0%EB%AC%BC-%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%94%A9/dashboard
+
