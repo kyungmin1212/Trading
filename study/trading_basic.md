@@ -707,6 +707,73 @@
 
 ## #5
 
+### 잔고 대비 구매 수량 계산하기
+- https://www.binance.com/en/trade-rule 에서 USDT Markets의 Minimum Trade Amount 확인
+- BTC/USDT 는 0.00001 BTC 이므로 0.00001 미만의 수량은 거래가 진행이 안됨!
+- 잔고 대비 10퍼센트 거래하는 함수 예시(leverage를 고려 안함)
+    ```python
+    import math
+
+    def cal_amount(usdt_balance,cur_price,portion):
+        portion = portion
+        usdt_trade = usdt_balance * portion
+        amount = math.floor((usdt_trade*100000)/cur_price)/100000 # 최소 단위가 0.00001 BTC이므로
+        return amount
+
+    # usdt 잔고 조회
+    balance = exchange.fetch_balance()
+    usdt_balance = balance['total']['USDT']
+
+    # 현재가 조회
+    symbol = 'BTC/USDT'
+    ticker = exchange.fetch_ticker(symbol)
+    cur_price = ticker['last']
+
+    amount = cal_amount(usdt_balance,cur_price,0.1)
+    print(usdt_balance)
+    print(cur_price)
+    print(amount)
+    '''
+    86.05463201
+    22937.2
+    0.00037
+    '''
+    ```
+- 잔고 대비 10퍼센트 거래하는 함수 예시(leverage를 고려)
+    ```python
+    import math
+
+    def cal_amount(usdt_balance,cur_price,portion,leverage):
+        portion = portion
+        usdt_trade = usdt_balance*leverage * portion
+        amount = math.floor((usdt_trade*100000)/cur_price)/100000 # 최소 단위가 0.00001 BTC이므로
+        return amount
+
+    # usdt 잔고 조회
+    balance = exchange.fetch_balance()
+    usdt_balance = balance['total']['USDT']
+
+    # 현재가 조회
+    symbol = 'BTC/USDT'
+    ticker = exchange.fetch_ticker(symbol)
+    cur_price = ticker['last']
+
+    amount = cal_amount(usdt_balance,cur_price,0.1,5)
+    print(usdt_balance)
+    print(cur_price)
+    print(amount)
+    '''
+    86.05463201
+    22967.3
+    0.00187
+    '''
+    ```
+#### References
+- https://www.binance.com/en/trade-rule
+---
+
+## #6
+
 ### BackTest 기본
 
 #### References
