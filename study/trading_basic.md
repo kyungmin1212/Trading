@@ -770,10 +770,6 @@
     ```
 #### References
 - https://www.binance.com/en/trade-rule
+- https://learningspoons.com/course/detail/pythonforfinance/
 ---
 
-## #6
-
-### BackTest 기본
-
-#### References
