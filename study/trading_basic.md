@@ -72,7 +72,7 @@
 
             return int(ts*1000)
 
-        binance = ccxt.binance()
+        binance = ccxt.binanceusdm()
         btc_ohlcv = binance.fetch_ohlcv("BTC/USDT",since=date_to_timestamp('2023-01-17 00:00:00'))
 
         df = pd.DataFrame(btc_ohlcv, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
@@ -104,7 +104,7 @@
             import pandas as pd 
 
 
-            binance = ccxt.binance()
+            binance = ccxt.binanceusdm()
             btc_ohlcv = binance.fetch_ohlcv("BTC/USDT",since=date_to_timestamp('2023-01-18 23:00:00'))
 
             df = pd.DataFrame(btc_ohlcv, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
@@ -164,7 +164,7 @@
         # 입력 end_time은 한국시간기준이므로 utc기준으로 변경해주기. pd.to_datetime 이 UTC 시간으로 반환하기때문에 UTC 시간 기준으로 체크를 해줘야함 (UTC에서 KST로 변경은 제일 마지막에 함)
         utc_end_time = datetime.datetime.strptime(end_time,'%Y-%m-%d %H:%M:%S') - datetime.timedelta(hours = 9)
         
-        binance = ccxt.binance()
+        binance = ccxt.binanceusdm()
         btc_ohlcv = binance.fetch_ohlcv(coin_name,period,since=date_to_timestamp(start_time))
 
         df = pd.DataFrame(btc_ohlcv, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
@@ -447,204 +447,266 @@
 ### Binance API (ccxt)
 - 선물 API 신청한 후 Enable Futures 체크해주기
 - ccxt 이용 바이낸스 단순 거래
-    - api key 값 가져오기
-        ```python
-        with open("./binance.key") as f:
-            lines = f.readlines()
-            api_key = lines[0].strip()
-            api_secret = lines[1].strip()
-        ```
-    - 거래소 객체 생성(`ccxt.binance`)
+    - api key 값 세팅
         ```python
         import ccxt
 
-        exchange = ccxt.binance(config={
-            'apiKey': api_key,
-            'secret': api_secret,
-            'enableRateLimit': True, # 시장가 주문을 불가능하게 함
-            'options': {
-                'defaultType': 'future'       # 선물 거래
-            }
-        })
-        print(exchange)
-        '''
-        Binance
-        '''
-        ```
-    - usdt 시장에서 거래되고 있는 암호화폐들의 심볼 가져오기(`fetch_tickers()`)
-        ```python
-        import ccxt
-
-        with open("./binance.key") as f:
+        with open("./api.txt") as f:
             lines = f.readlines()
             api_key = lines[0].strip()
             api_secret = lines[1].strip()
 
-        exchange = ccxt.binance(config={
+        exchange = ccxt.binanceusdm({
             'apiKey': api_key,
             'secret': api_secret,
-            'enableRateLimit': True,
-            'options': {
-                'defaultType': 'future'
-            }
         })
-
-        tickers = exchange.fetch_tickers()
-        symbols = tickers.keys()
-        usdt_symbols = [x for x in symbols if x.endswith('USDT')]
-        print(usdt_symbols)
-        print(len(usdt_symbols))
-        '''
-        ['BAKE/USDT:USDT', 'NKN/USDT:USDT', 'XEM/USDT:USDT', 'FOOTBALL/USDT:USDT', 'LRC/USDT:USDT', 'ZEC/USDT:USDT', 'LINA/USDT:USDT', ... ,'GMT/USDT:USDT', 'CELR/USDT:USDT', 'BAL/USDT:USDT', 'DENT/USDT:USDT', 'LPT/USDT:USDT', 'SNX/USDT:USDT']
-        156
-        '''
         ```
-    - 잔고 조회(`exchange.fetch_balance()`)
+
+    - 잔고 조회
         ```python
-        import ccxt
-        import pprint
-
-        with open("./binance.key") as f:
-            lines = f.readlines()
-            api_key = lines[0].strip()
-            api_secret = lines[1].strip()
-
-        exchange = ccxt.binance(config={
-            'apiKey': api_key,
-            'secret': api_secret,
-            'enableRateLimit': True,
-            'options': {
-                'defaultType': 'future'
-            }
-        })
-
-        # balance
+        # 잔고 조회 #
         balance = exchange.fetch_balance()
         usdt_balance = balance['USDT']
-        pprint.pprint(usdt_balance) 
+        print(usdt_balance)
+        total_balance = balance['total']
+        print(total_balance)
+        total_usdt_balance = balance['total']['USDT']
+        print(total_usdt_balance)
+        ##########################|
         '''
-        {'free': 157.79005017, 'total': 157.79005017, 'used': 0.0}
+        {'free': 86.05463201, 'used': 0.0, 'total': 86.05463201}
+        {'DOT': 0.0, 'BTC': 0.0, 'SOL': 0.0, 'BNB': 0.0, 'ETH': 0.0, 'ADA': 0.0, 'USDT': 86.05463201, 'XRP': 0.0, 'BUSD': 0.0}
+        86.05463201
         '''
         ```
-    - 선물 주문
-        - 롱 포지션 진입과 정리
-            - 시장가로 롱 포지션 진입 : `create_market_buy_order`
-            - 지정가로 롱 포지션 진입 : `create_limit_buy_order`
-            - 시장가로 롱 포지션 정리 : `create_market_sell_order`
-            - 지정가로 롱 포지션 정리 : `create_limit_sell_order`
-        - 숏 포지션 진입과 정리
-            - 시장가로 숏 포지션 진입 : `create_market_sell_order`
-            - 지정가로 숏 포지션 진입 : `create_limit_sell_order`
-            - 시장가로 롱 포지션 정리 : `create_market_buy_order`
-            - 지정가로 롱 포지션 정리 : `create_limit_buy_order`
-        - TP/SL (Take Profit, Stop Loss)
-            - ex) 19600$에 시장가로 롱 포지션을 오픈한 후 익절은 19800$, 손절은 19400$에 하고 싶다면 TP/SL 체크한 후 TP와 SL에 각각 19800,19400 입력
-            - 익절이나 손절이 되면 반대 주문은 자동으로 취소됨
-        - 시장가 주문과 TP/SL
-            ```python
-            import ccxt
-            import pprint
+    - 선물 현재가 조회
+        - last가 현재가를 의미하는것
+        - ask : 매도호가, bid : 매수호가
+        ```python
+        # 선물 현재가 조회 #
+        btc = exchange.fetch_ticker('BTC/USDT')
+        pprint.pprint(btc)
+        '''
+        {'ask': None,
+        'askVolume': None,
+        'average': 22857.9,
+        'baseVolume': 591234.263,
+        'bid': None,
+        'bidVolume': None,
+        'change': 143.6,
+        'close': 22929.7,
+        'datetime': '2023-01-23T19:13:56.855Z',
+        'high': 23193.1,
+        'info': {'closeTime': '1674501236855',
+                'count': '3407518',
+                'firstId': '3220639485',
+                'highPrice': '23193.10',
+                'lastId': '3224047338',
+                'lastPrice': '22929.70',
+                'lastQty': '0.001',
+                'lowPrice': '22287.00',
+                'openPrice': '22786.10',
+                'openTime': '1674414780000',
+                'priceChange': '143.60',
+                'priceChangePercent': '0.630',
+                'quoteVolume': '13462002223.45',
+                'symbol': 'BTCUSDT',
+                'volume': '591234.263',
+                'weightedAvgPrice': '22769.32'},
+        'last': 22929.7,
+        'low': 22287.0,
+        'open': 22786.1,
+        'percentage': 0.63,
+        'previousClose': None,
+        'quoteVolume': 13462002223.45,
+        'symbol': 'BTC/USDT:USDT',
+        'timestamp': 1674501236855,
+        'vwap': 22769.32}
+        '''
+        ```
+        ```python
+        # 선물 현재가 조회 #
+        btc = exchange.fetch_ticker('BTC/USDT')
+        print(btc['last'])
+        '''
+        22912.7
+        '''
+        ```
+    - 선물 OHLCV 조회
+        ```python
+        # 선물 OHLCV 조회
+        btc = exchange.fetch_ohlcv(symbol='BTC/USDT',timeframe='1d',since=None,limit=10)
 
-            with open("./binance.key") as f:
-                lines = f.readlines()
-                api_key = lines[0].strip()
-                secret  = lines[1].strip()
+        df = pd.DataFrame(btc,columns=['datetime','open','high','low','close','volume'])
+        df['datetime'] = pd.to_datetime(df['datetime'],unit='ms')
+        df.set_index('datetime',inplace=True)
+        print(df)
+        '''
+                       open     high      low    close       volume
+        datetime                                                   
+        2023-01-14  19924.3  21544.0  19882.6  20962.8  1010666.683
+        2023-01-15  20962.8  21073.8  20556.0  20882.7   428486.559
+        2023-01-16  20882.7  21498.0  20606.6  21188.3   666148.201
+        2023-01-17  21188.2  21640.0  20827.8  21130.9   547390.593
+        2023-01-18  21130.8  21672.0  20386.0  20680.0   813785.517
+        2023-01-19  20680.1  21183.9  20659.9  21068.3   374733.617
+        2023-01-20  21068.3  22750.0  20856.4  22661.1   723645.200
+        2023-01-21  22661.0  23390.0  22422.0  22781.9   764681.100
+        2023-01-22  22781.8  23080.2  22287.0  22704.6   482529.811
+        2023-01-23  22704.7  23193.1  22500.0  22876.0   441291.600
+        '''
+        ```
+    - 선물 오더북(orderbook) 조회
+        ```python
+        # 선물 오더북 조회 #
+        orderbook = exchange.fetch_order_book('BTC/USDT')
+        print(orderbook.keys())
+        asks = orderbook['asks'] # 매도호가 500개
+        bids = orderbook['bids'] # 매수호가 500개
+        print(asks[:5])
+        print(bids[:5])
+        '''
+        dict_keys(['symbol', 'bids', 'asks', 'timestamp', 'datetime', 'nonce'])
+        [[22855.1, 18.632], [22855.3, 0.123], [22855.4, 3.321], [22855.5, 1.596], [22855.6, 10.416]]
+        [[22855.0, 0.079], [22854.9, 0.231], [22854.8, 0.3], [22854.7, 0.009], [22854.6, 0.249]]
+        '''
+        ```
+    - 매수/롱 포지션 진입
+        ```python
+        order = exchange.create_market_buy_order(
+            symbol='BTC/USDT',
+            amount=0.001
+        )
+        print(order)
+        ```
+    - 매수/롱 포지션 정리
+        ```python
+        order = exchange.create_market_sell_order(
+            symbol='BTC/USDT',
+            amount=0.001
+        )
+        print(order)
+        ```
+    - 매도/숏 포지션 진입(=매수/롱 포지션 정리)
+        ```python
+        order = exchange.create_market_sell_order(
+            symbol='BTC/USDT',
+            amount=0.001
+        )
+        print(order)
+        ```
+    - 매도/숏 포지션 정리(=매수/롱 포지션 진입)
+        ```python
+        order = exchange.create_market_buy_order(
+            symbol='BTC/USDT',
+            amount=0.001
+        )
+        print(order)
+        ```
+    - 레버리지(leverage) 설정
+        - 바이낸스 웹페이지에서 교차/격리와 레버리지를 설정한 경우 API에 그대로 적용됨
+        - API 사용시 웹페이지에서 교차/격리와 레버리지를 변경하면 해당 설정이 적용되어 버림(주의)(코드가 돌고있을때는 웹페이지에서도 레버리지를 변경하면 안됨!)
+        ```python
+        #  leverage setting  #
+        markets = exchange.load_markets()
+        symbol = 'BTC/USDT'
+        market = exchange.market(symbol)
+        leverage =  5
 
-            binance = ccxt.binance(config={
-                'apiKey': api_key,
-                'secret': secret,
-                'enableRateLimit': True,
-                'options': {
-                    'defaultType': 'future'
-                }
-            })
+        response = exchange.fapiPrivate_post_leverage({
+            'symbol': market['id'],
+            'leverage': leverage,
+        })
+        print(response)
+        '''
+        {'symbol': 'BTCUSDT', 'leverage': '5', 'maxNotionalValue': '50000000'}
 
-            orders = [None] * 3
+        '''
+        ```
+    - 현재 진입한 포지션 정보 얻기
+        - 잔고조회에서 positions key 이용
+        ```python
+        balance = exchange.fetch_balance()
+        positions = balance['info']['positions']
 
-            # market price (ex: 19500$)
-            orders[0] = binance.create_order(
-                symbol="BTC/USDT",
-                type="MARKET",
-                side="buy",
-                amount=0.001
-            )
+        for position in positions:
+            if position['symbol']=='BTCUSDT':
+                print(position)
+        ```
+    - 대기 주문 얻어오기
+        - 지정가로 주문한경우 미체결 주문(open order=대기 주문)이 존재함
+        ```python
+        open_orders = exchange.fetch_open_orders(
+            symbol='BTC/USDT'
+        )
+        print(open_orders)
+        ```
+    - 시장가 주문과 TP/SL(take profit & stop loss)
+        ```python
+        # 시장가 주문 과 take profig & stop loss #
 
-            # take profit
-            orders[1] = binance.create_order(
-                symbol="BTC/USDT",
-                type="TAKE_PROFIT_MARKET",
-                side="sell",
-                amount=0.001,
-                params={'stopPrice': 22950}
-            )
+        symbol = 'BTC/USDT'
+        side = 'buy'
+        amount = 0.001 # 레버리지가 적용되어서 이 수량만큼 buy or sell 적용
+        price = None
+        stopLossPrice = 22890
+        takeProfitPrice = 22910
 
-            # stop loss
-            orders[2] = binance.create_order(
-                symbol="BTC/USDT",
-                type="STOP_MARKET",
-                side="sell",
-                amount=0.001,
-                params={'stopPrice': 22900}
-            )
+        try:
+            order = exchange.create_order(symbol, 'MARKET', side, amount)
+            print(order)
 
-            for order in orders:
-                pprint.pprint(order)
-            ```
-        - 지정가 주문과 TP/SL
-            ```python
-            import ccxt
-            import pprint
+            inverted_side = 'sell' if side == 'buy' else 'buy'
 
-            with open("./binance.key") as f:
-                lines = f.readlines()
-                api_key = lines[0].strip()
-                secret  = lines[1].strip()
+            stopLossParams = {'stopPrice': stopLossPrice}
+            stopLossOrder = exchange.create_order(symbol, 'STOP_MARKET', inverted_side, amount, price, stopLossParams)
+            print(stopLossOrder)
 
-            binance = ccxt.binance(config={
-                'apiKey': api_key,
-                'secret': secret,
-                'enableRateLimit': True,
-                'options': {
-                    'defaultType': 'future'
-                }
-            })
+            takeProfitParams = {'stopPrice': takeProfitPrice}
+            takeProfitOrder = exchange.create_order(symbol, 'TAKE_PROFIT_MARKET', inverted_side, amount, price, takeProfitParams)
+            print(takeProfitOrder)
 
-            orders = [None] * 3
-            price = 22930
+        except Exception as e:
+            print(type(e).__name__, str(e))
+        ```
+    - 지정가 주문과 TP/SL
+        - 지정가 주문은 takeprofit 주문이 들어가지지 않게 됨.(주문이 체결될때까지 기다려야하기때문)
+        - 또한 price 가격이 현재 가격보다 높은데 buy를 하게되면 바로 체결이 됨(반대로 price 가격이 현재 가격보다 낮은데 sell을 하게 되면 바로 체결이 됨)(내가 구매하고 싶은 가격이 현재 가격보다 바싸거나 싸기때문에 바로 체결이 되는것)
+        ```python
+        # 지정가 주문 과 take profig & stop loss #
 
-            # limit price
-            orders[0] = binance.create_order(
-                symbol="BTC/USDT",
-                type="LIMIT",
-                side="buy",
-                amount=0.001,
-                price=price
-            )
+        symbol = 'BTC/USDT'
+        side = 'buy'
+        amount = 0.001
+        price = 22870
+        stopLossPrice = 22860
+        takeProfitPrice = 22880
 
-            # take profit
-            orders[1] = binance.create_order(
-                symbol="BTC/USDT",
-                type="TAKE_PROFIT",
-                side="sell",
-                amount=0.001,
-                price=price,
-                params={'stopPrice': 22950}
-            )
+        try:
+            order = exchange.create_order(symbol, 'LIMIT', side, amount, price)
+            print(order)
 
-            # stop loss
-            orders[2] = binance.create_order(
-                symbol="BTC/USDT",
-                type="STOP",
-                side="sell",
-                amount=0.001,
-                price=price,
-                params={'stopPrice': 22900}
-            )
+            inverted_side = 'sell' if side == 'buy' else 'buy'
 
-            for order in orders:
-                pprint.pprint(order)
-            ```
+            stopLossParams = {'stopPrice': stopLossPrice}
+            stopLossOrder = exchange.create_order(symbol, 'STOP_MARKET', inverted_side, amount, price, stopLossParams)
+            print(stopLossOrder)
 
+            takeProfitParams = {'stopPrice': takeProfitPrice}
+            takeProfitOrder = exchange.create_order(symbol, 'TAKE_PROFIT_MARKET', inverted_side, amount, price, takeProfitParams)
+            print(takeProfitOrder)
+
+        except Exception as e:
+            print(type(e).__name__, str(e))
+        ```
 #### References
 - https://wikidocs.net/178885
+- https://github.com/ccxt/ccxt/tree/master/examples/py
 
+---
+
+## #5
+
+### BackTest 기본
+
+#### References
