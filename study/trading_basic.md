@@ -3,6 +3,8 @@
 - [데이터 수집](#1)
 - [Timestamp를 시간으로 변경하기(밀리세컨드)](#2)
 - [TA Library(Technical Analysis)](#3)
+- [Binance API (ccxt)](#4)
+
 ---
 ## #1
 
@@ -116,7 +118,7 @@
             Index: []
             '''
             ```
-- ccxt를 이용해 원하는 기간 데이터 수집하기
+- ccxt를 이용해 원하는 기간 데이터 수집하기(data_collect.ipynb)
     ```python
     import datetime
     import time
@@ -437,4 +439,212 @@
     ```
 #### References
 - https://www.inflearn.com/course/%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%84%A0%EB%AC%BC-%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%94%A9/dashboard
+
+---
+
+## #4
+
+### Binance API (ccxt)
+- 선물 API 신청한 후 Enable Futures 체크해주기
+- ccxt 이용 바이낸스 단순 거래
+    - api key 값 가져오기
+        ```python
+        with open("./binance.key") as f:
+            lines = f.readlines()
+            api_key = lines[0].strip()
+            api_secret = lines[1].strip()
+        ```
+    - 거래소 객체 생성(`ccxt.binance`)
+        ```python
+        import ccxt
+
+        exchange = ccxt.binance(config={
+            'apiKey': api_key,
+            'secret': api_secret,
+            'enableRateLimit': True, # 시장가 주문을 불가능하게 함
+            'options': {
+                'defaultType': 'future'       # 선물 거래
+            }
+        })
+        print(exchange)
+        '''
+        Binance
+        '''
+        ```
+    - usdt 시장에서 거래되고 있는 암호화폐들의 심볼 가져오기(`fetch_tickers()`)
+        ```python
+        import ccxt
+
+        with open("./binance.key") as f:
+            lines = f.readlines()
+            api_key = lines[0].strip()
+            api_secret = lines[1].strip()
+
+        exchange = ccxt.binance(config={
+            'apiKey': api_key,
+            'secret': api_secret,
+            'enableRateLimit': True,
+            'options': {
+                'defaultType': 'future'
+            }
+        })
+
+        tickers = exchange.fetch_tickers()
+        symbols = tickers.keys()
+        usdt_symbols = [x for x in symbols if x.endswith('USDT')]
+        print(usdt_symbols)
+        print(len(usdt_symbols))
+        '''
+        ['BAKE/USDT:USDT', 'NKN/USDT:USDT', 'XEM/USDT:USDT', 'FOOTBALL/USDT:USDT', 'LRC/USDT:USDT', 'ZEC/USDT:USDT', 'LINA/USDT:USDT', ... ,'GMT/USDT:USDT', 'CELR/USDT:USDT', 'BAL/USDT:USDT', 'DENT/USDT:USDT', 'LPT/USDT:USDT', 'SNX/USDT:USDT']
+        156
+        '''
+        ```
+    - 잔고 조회(`exchange.fetch_balance()`)
+        ```python
+        import ccxt
+        import pprint
+
+        with open("./binance.key") as f:
+            lines = f.readlines()
+            api_key = lines[0].strip()
+            api_secret = lines[1].strip()
+
+        exchange = ccxt.binance(config={
+            'apiKey': api_key,
+            'secret': api_secret,
+            'enableRateLimit': True,
+            'options': {
+                'defaultType': 'future'
+            }
+        })
+
+        # balance
+        balance = exchange.fetch_balance()
+        usdt_balance = balance['USDT']
+        pprint.pprint(usdt_balance) 
+        '''
+        {'free': 157.79005017, 'total': 157.79005017, 'used': 0.0}
+        '''
+        ```
+    - 선물 주문
+        - 롱 포지션 진입과 정리
+            - 시장가로 롱 포지션 진입 : `create_market_buy_order`
+            - 지정가로 롱 포지션 진입 : `create_limit_buy_order`
+            - 시장가로 롱 포지션 정리 : `create_market_sell_order`
+            - 지정가로 롱 포지션 정리 : `create_limit_sell_order`
+        - 숏 포지션 진입과 정리
+            - 시장가로 숏 포지션 진입 : `create_market_sell_order`
+            - 지정가로 숏 포지션 진입 : `create_limit_sell_order`
+            - 시장가로 롱 포지션 정리 : `create_market_buy_order`
+            - 지정가로 롱 포지션 정리 : `create_limit_buy_order`
+        - TP/SL (Take Profit, Stop Loss)
+            - ex) 19600$에 시장가로 롱 포지션을 오픈한 후 익절은 19800$, 손절은 19400$에 하고 싶다면 TP/SL 체크한 후 TP와 SL에 각각 19800,19400 입력
+            - 익절이나 손절이 되면 반대 주문은 자동으로 취소됨
+        - 시장가 주문과 TP/SL
+            ```python
+            import ccxt
+            import pprint
+
+            with open("./binance.key") as f:
+                lines = f.readlines()
+                api_key = lines[0].strip()
+                secret  = lines[1].strip()
+
+            binance = ccxt.binance(config={
+                'apiKey': api_key,
+                'secret': secret,
+                'enableRateLimit': True,
+                'options': {
+                    'defaultType': 'future'
+                }
+            })
+
+            orders = [None] * 3
+
+            # market price (ex: 19500$)
+            orders[0] = binance.create_order(
+                symbol="BTC/USDT",
+                type="MARKET",
+                side="buy",
+                amount=0.001
+            )
+
+            # take profit
+            orders[1] = binance.create_order(
+                symbol="BTC/USDT",
+                type="TAKE_PROFIT_MARKET",
+                side="sell",
+                amount=0.001,
+                params={'stopPrice': 22950}
+            )
+
+            # stop loss
+            orders[2] = binance.create_order(
+                symbol="BTC/USDT",
+                type="STOP_MARKET",
+                side="sell",
+                amount=0.001,
+                params={'stopPrice': 22900}
+            )
+
+            for order in orders:
+                pprint.pprint(order)
+            ```
+        - 지정가 주문과 TP/SL
+            ```python
+            import ccxt
+            import pprint
+
+            with open("./binance.key") as f:
+                lines = f.readlines()
+                api_key = lines[0].strip()
+                secret  = lines[1].strip()
+
+            binance = ccxt.binance(config={
+                'apiKey': api_key,
+                'secret': secret,
+                'enableRateLimit': True,
+                'options': {
+                    'defaultType': 'future'
+                }
+            })
+
+            orders = [None] * 3
+            price = 22930
+
+            # limit price
+            orders[0] = binance.create_order(
+                symbol="BTC/USDT",
+                type="LIMIT",
+                side="buy",
+                amount=0.001,
+                price=price
+            )
+
+            # take profit
+            orders[1] = binance.create_order(
+                symbol="BTC/USDT",
+                type="TAKE_PROFIT",
+                side="sell",
+                amount=0.001,
+                price=price,
+                params={'stopPrice': 22950}
+            )
+
+            # stop loss
+            orders[2] = binance.create_order(
+                symbol="BTC/USDT",
+                type="STOP",
+                side="sell",
+                amount=0.001,
+                price=price,
+                params={'stopPrice': 22900}
+            )
+
+            for order in orders:
+                pprint.pprint(order)
+            ```
+
+#### References
+- https://wikidocs.net/178885
 
