@@ -743,8 +743,17 @@
     ```python
     import math
 
+    # 구매 수량 계산
     def cal_amount(usdt_balance,cur_price,portion,leverage):
-        portion = portion
+        """
+        거래시점 기준 현재 자산 대비 portion 만큼의 금액을 cur_price에 구매할때 구매량 구하기
+        :params float usdt_balance : 현재 시점 usdt_balance
+        :params float cur_price : 현재 시점 가격
+        :params float portion : 자산대비 구매비율
+        :params int leverage : 레버리지(1이상, 1이면 그냥 자기 자산만으로 거래)
+        :return amount ex) BTC/USDT라면 0.00346 (단위 BTC)
+        :rtype float
+        """
         usdt_trade = usdt_balance*leverage * portion
         amount = math.floor((usdt_trade*100000)/cur_price)/100000 # 최소 단위가 0.00001 BTC이므로
         return amount
