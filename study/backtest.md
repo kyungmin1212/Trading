@@ -1,7 +1,9 @@
 ## Table of Contents
 - [내 기준 백테스팅시 기본 고려 사항](#1)
-- [골든크로스 데드크로스 이용 백테스팅](#2)
-- [마틴게일 베팅법을 응용한 매매방법](#3)
+- [파라미터 튜닝 방법](#2)
+- [골든크로스 데드크로스 이용 백테스팅](#3)
+- [마틴게일 베팅법을 응용한 매매방법](#4)
+- [VWAP 매매법](#5)
 
 ---
 
@@ -19,12 +21,155 @@
 
 - 매매조건에 따라서 1분봉같은 경우는 조건을 만족하는 경우가 연속적으로 생성될수가 있음. 이럴 경우 1분단위로 한번 open 하면 n분 동안은 open은 하지 못하게 하는 방법등을 설정해둘수 있음. 이 n 또한 tuning 으로 설정하는 값
 
+- 여러번 매수매도를 진행하는 경우는 확실한 매도를 할때 매수를 한 포지션을 모두 정리하는것이 아니라면 각각의 포지션마다 익절라인 손절라인을 정해놓고 스탑로스와 익절선을 걸어놨다고 생각하고 매수매도 (백테스팅을 구현할때는 최대 매수매도 개수를 정해놓고 매수 매도 한 포지션마다 익절라인이나 손절라인에 도달했는지 체크해보기)(여기서도 백테스팅의 단점이 들어나는데 만약에 타임스텝이 긴시간으로 측정된다면 익절라인과 손절라인이 한 타임스텝에 동시에 존재할수 있음 이럴때는 보수적으로 하고싶다면 백테스팅시에 같은 타임스텝에서는 손절부터 처리하고 조금 가능성을 더 열어두고 싶다면 익절먼저 처리하기)
+
+- 상승장,하락장,횡보장을 구분할수 있는 명확한 기준을 만들고 매매법칙을 만들면 성과가 더 좋게 나올것. 하지만 이것을 정확하게 구분한다는것은 쉽지 않음 -> 알고리즘에 맞게 튜닝을 해줘야함
+
 ---
 
 ## #2
 
+### 파라미터 튜닝 방법
+- 그리드 서치 : 범위를 정해 놓고 그 범위 안에서 랜덤 선택하는 것
+    - 따로 라이브러리 없이 그냥 단순하게 rand를 통해서 값을 찾아나가는 것
+    - 코드
+        ```python
+        ```
+- 베이지안 최적화 : 베이지안 확률 개념(가설을 세우고 실제로 실행해서 가설을 검증하고 개선해나가는 것)을 바탕으로 범위 안에서 조금 더 빠르게 파라미터를 찾아나가는 방법
+    - 설치 
+        - `!pip install bayesian-optimization`
+        - `conda install -c conda-forge bayesian-optimization`
+    - 코드
+        ```python
+         # x가 2일때 y가 1일때 최댓값 1을 가지는 함수 예시
+        def black_box_function(x, y):
+            return -(x-2) ** 2 - (y - 1) ** 2 + 1
+        pbounds = {'x':(2,4),'y':(-3,3)}
+
+        optimizer = BayesianOptimization(
+            f = black_box_function,
+            pbounds = pbounds,
+            random_state = 1
+        )
+
+        optimizer.maximize(
+            init_points=5, # 처음에 랜덤하게 도는 횟수
+            n_iter=20, # 베이지안 확률 기반으로 반복 횟수
+        )
+        '''
+        |   iter    |  target   |     x     |     y     |
+        -------------------------------------------------
+        | 1         | -7.135    | 2.834     | 1.322     |
+        | 2         | -7.78     | 2.0       | -1.186    |
+        | 3         | -16.13    | 2.294     | -2.446    |
+        | 4         | -8.341    | 2.373     | -0.9266   |
+        | 5         | -7.392    | 2.794     | 0.2329    |
+        | 6         | -15.02    | 4.0       | 0.8624    |
+        | 7         | -3.799    | 2.184     | 0.83      |
+        | 8         | -5.343    | 2.0       | 2.531     |
+        | 9         | -14.29    | 3.36      | 3.0       |
+        | 10        | -3.363    | 2.0       | 1.603     |
+        | 11        | -3.873    | 2.0       | 0.06544   |
+        | 12        | -3.012    | 2.0       | 1.108     |
+        | 13        | -3.072    | 2.0       | 0.7319    |
+        | 14        | -3.003    | 2.0       | 0.9458    |
+        | 15        | -3.0      | 2.0       | 1.006     |
+        | 16        | -3.0      | 2.0       | 1.003     |
+        | 17        | -3.0      | 2.0       | 1.002     |
+        | 18        | -3.0      | 2.0       | 1.002     |
+        | 19        | -3.002    | 2.0       | 0.9547    |
+        | 20        | -3.0      | 2.0       | 1.02      |
+        | 21        | -3.0      | 2.0       | 1.016     |
+        | 22        | -3.0      | 2.0       | 1.013     |
+        | 23        | -3.001    | 2.0       | 0.9613    |
+        | 24        | -3.0      | 2.0       | 1.017     |
+        | 25        | -3.0      | 2.0       | 1.014     |
+        =================================================
+        '''
+        ```
+        ```python
+        target_list = []
+
+        for res in enumerate(optimizer.res):
+            target_list.append(res)
+            
+        target_list.sort(key=lambda x:x[1]['target'],reverse=True)    
+        print(target_list[0])
+        '''
+        (23, {'target': 0.9999568202951842, 'params': {'x': 2.0, 'y': 1.0065711266017168}})
+        '''
+        # 첫번째 23은 23번째 반복에서 나온 결과값이라는 뜻
+        ```
+    - 실전 코드 예시
+        ```python
+        def run_test(config):
+            balance = 300    #잔고
+            balance_rate = 1 #잔고 사용 비율, 2이면 2배 레버리지 사용
+
+            trade_fee = 0.001      #거래수수료
+            revenue_rate   = config['revenue_rate']    #익절 비율(Tunning)
+            max_loss_rate  = config['max_loss_rate']   #손절 비율(Tunning)
+            open_cnt_limit = config['open_cnt_limit']  #최대 오픈 건수(Tunning)
+
+            set_wma_s  = list_wma_s [int(round(config['wma_s'],0))] # 소수점에서 찾기때문에 인트로 변경시켜줘서 사용하면 됨
+            ##### 생략 ####
+            ###############
+            return revenue # maximize 하고 싶은 값을 return 해야함
+        ```
+        ```python
+        def black_box_function(revenue_rate, max_loss_rate, open_cnt_limit, wma_s, wma_l, wma_ss, wma_ll,
+                      ll_bl_inc_rate_dec, ll_max_loss_rate_dec, ll_revenue_rate_dec, ll_balance_rate_dec
+                      ):
+            config_data = {
+                'revenue_rate'  : revenue_rate,
+                'max_loss_rate' : max_loss_rate,
+                'open_cnt_limit' : open_cnt_limit,
+                'wma_s'  : wma_s,
+                'wma_l'  : wma_l,
+                'wma_ss' : wma_ss,
+                'wma_ll' : wma_ll,
+                'll_bl_inc_rate_dec' : ll_bl_inc_rate_dec, 
+                'll_max_loss_rate_dec' : ll_max_loss_rate_dec, 
+                'll_revenue_rate_dec' : ll_revenue_rate_dec, 
+                'll_balance_rate_dec' : ll_balance_rate_dec
+            }
+            revenue = run_test(config_data)
+            return revenue
+
+        pbounds = {
+            'revenue_rate':  (0.003,0.1),
+            'max_loss_rate': (0.003,0.1),
+            'open_cnt_limit':(3,15), 
+            'wma_s': (0,3), 
+            'wma_l': (0,3), 
+            'wma_ss':(0,3), 
+            'wma_ll':(0,3),
+            'll_bl_inc_rate_dec' :   (0.2, 1), 
+            'll_max_loss_rate_dec' : (0.2, 1), 
+            'll_revenue_rate_dec' :  (0.2, 1), 
+            'll_balance_rate_dec' :  (0.2, 1) 
+        }
+
+        optimizer = BayesianOptimization(
+            f=black_box_function,
+            pbounds=pbounds,
+            random_state=1
+        )
+
+        #실행
+        optimizer.maximize(
+            init_points=10,
+            n_iter=100
+        )
+        ```
+#### References
+- https://github.com/fmfn/BayesianOptimization/blob/master/examples/advanced-tour.ipynb
+---
+
+## #3
+
 ### 골든크로스 데드크로스 이용 백테스팅
-- 타임프레임 : 15분봉
+- 타임프레임 : 분봉,일봉
 - 매매 기법 : 골든크로스,데드크로스
 - 사용 지표 : 이동평균선
 - 변수의 수 : 2개
@@ -53,11 +198,9 @@
     - 하지만 횡보장에서는 중기 추세선과 장기 추세선의 크로스가 나타나는 경우가 빈번하여 추세를 따라가서 수익을 크게 본다기 보다는 오르면 바로 하락하고 내리면 바로 상승하는 경우가 많아 손해가 점점 커짐
     - 이평선 거래만으로는 횡보장에서 손해를 보게 됨. 단, 상승추세나 하락추세가 결정되어져 있다면 쓸만한 전략
 
-#### References
-
 ---
 
-## #3
+## #4
 
 ### 마틴게일 베팅법을 응용한 매매방법
 - 질때마다 2배의 금액으로 배팅을 하면 결국에는 언젠가는 따게된다는 방법
@@ -66,3 +209,12 @@
 - BTC/USDT 기준 first_open_coin_amount = 0.00001 로 포지션을 처음 open 한다고 가정했을때 2020년부터 수익률은 총 60.76755633142815 (0.5프로 오르면 매도, 3프로 내리면 추가 매수)
 - 코드
     - https://github.com/kyungmin1212/Trading/blob/main/code/martingale_backtest.ipynb
+
+---
+
+## #5
+
+### VWAP 매매법
+
+
+---
