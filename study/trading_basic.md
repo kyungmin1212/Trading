@@ -632,6 +632,9 @@
         for position in positions:
             if position['symbol']=='BTCUSDT':
                 print(position)
+        '''
+        {'symbol': 'BTCUSDT', 'initialMargin': '23.14650000', 'maintMargin': '0.09258600', 'unrealizedProfit': '-0.00180000', 'positionInitialMargin': '23.14650000', 'openOrderInitialMargin': '0', 'leverage': '1', 'isolated': False, 'entryPrice': '23148.3', 'maxNotional': '5.0E8', 'positionSide': 'BOTH', 'positionAmt': '0.001', 'notional': '23.14650000', 'isolatedWallet': '0', 'updateTime': '1674854889176', 'bidNotional': '0', 'askNotional': '0'}
+        '''
         ```
     - 대기 주문 얻어오기
         - 지정가로 주문한경우 미체결 주문(open order=대기 주문)이 존재함
@@ -699,9 +702,232 @@
         except Exception as e:
             print(type(e).__name__, str(e))
         ```
+    - 바이낸스 주문 취소하기
+        - 코드
+            ```python
+            resp = exchange.cancel_order(
+                id=112689802387, # orderId
+                symbol='BTC/USDT'
+            )
+            print(resp)
+            ```
+        - 스탑로스나 익절 주문이 둘중에 하나라도 판매가 된다면 자동적으로 하나의 주문은 취소 해주어야함.
+        - 하나가 체결된다고 다른 주문이 취소되지 않음 
+        - 그 가격에 가면 자동으로 취소되긴 하지만 만약에 다른 추가적으로 매수가 들어갔을때 스탑로스나 익절주문이 남아있다면 그 주문 가격으로 체결이 되어버림. 따라서 반드시 내가 주문한 스탑로스나 익절 둘중에 하나라도 체결이 된다면 다른 주문은 취소되도록 만들어줘야함.
+    - 스탑로스 코드 작성시 다른 주문이 체결되면 다른 주문은 취소시키기
+        - 아래 코드를 응용해서 실매매에 작성하면 됨
+        ```python
+        symbol = 'BTC/USDT'
+        side = 'LONG' # SHORT -> stoploss 가격이 더 높아야함
+        amount = 0.001 # 레버리지가 적용되어서 이 수량만큼 buy or sell 적용
+        price = None
+        stopLossPrice = 23085
+        takeProfitPrice = 23095
+
+        # 방어 코드
+        if side == 'LONG':
+            if stopLossPrice>takeProfitPrice:
+                stopLossPrice, takeProfitPrice = takeProfitPrice, stopLossPrice
+        elif side == 'SHORT':
+            if stopLossPrice<takeProfitPrice:
+                stopLossPrice, takeProfitPrice = takeProfitPrice, stopLossPrice
+
+        open_order_list=[]
+
+        try:
+            if side == 'LONG':
+                
+                params = {
+                'positionSide': side
+                }
+                order = exchange.create_market_buy_order(symbol, amount,params)
+
+                params = {
+                    'stopPrice': stopLossPrice,
+                    'positionSide': side
+                }
+                stopLossOrder = exchange.create_order(symbol, 'STOP_MARKET', 'sell', amount, price, params)
+                print(stopLossOrder)
+
+
+                params = {
+                    'stopPrice': takeProfitPrice,
+                    'positionSide': side,
+                }
+
+                takeProfitOrder = exchange.create_order(symbol, 'TAKE_PROFIT_MARKET', 'sell', amount, price, params)
+                print(takeProfitOrder)
+                
+                stop_loss_order_id = stopLossOrder['info']['orderId']
+                take_profit_order_id = takeProfitOrder['info']['orderId']
+                
+                open_order_list.append([stop_loss_order_id,take_profit_order_id])
+                
+            elif side == 'SHORT':
+                params = {
+                'positionSide': side
+                }
+                order = exchange.create_market_sell_order(symbol, amount,params)
+
+
+                params = {
+                    'stopPrice': stopLossPrice,
+                    'positionSide': side
+                }
+                stopLossOrder = exchange.create_order(symbol, 'STOP_MARKET', 'buy', amount, price, params)
+                print(stopLossOrder)
+
+
+                params = {
+                    'stopPrice': takeProfitPrice,
+                    'positionSide': side,
+                }
+
+                takeProfitOrder = exchange.create_order(symbol, 'TAKE_PROFIT_MARKET', 'buy', amount, price, params)
+                print(takeProfitOrder)
+                
+                stop_loss_order_id = stopLossOrder['info']['orderId']
+                take_profit_order_id = takeProfitOrder['info']['orderId']
+                
+                open_order_list.append([stop_loss_order_id,take_profit_order_id])
+
+        except Exception as e:
+            print(type(e).__name__, str(e))
+            
+        # 실전 코드가 계속 돌아간다고 가정했을때 
+
+        import time
+
+        while True:
+            if not open_order_list:
+                break
+            
+            time.sleep(1)
+            
+            open_orders = exchange.fetch_open_orders(
+                    symbol='BTC/USDT'
+                )
+
+            open_orders_id =[order['info']['orderId'] for order in open_orders]
+
+            cancel_id_list=[]
+            
+            for s,t in open_order_list:
+                if s not in open_orders_id: # 체결된 경우
+                    cancel_id_list.append(t)
+                    open_order_list.remove([s,t])
+                    continue
+                    
+                if t not in open_orders_id: # 체결된 경우
+                    cancel_id_list.append(s)
+                    open_order_list.remove([s,t])
+                    continue
+            
+            for cancel_id in cancel_id_list:
+                resp = exchange.cancel_order(
+                    id=cancel_id,
+                    symbol='BTC/USDT'
+                )
+                print('나머지 주문이 취소되었습니다.')
+        '''
+        {'info': {'orderId': '112705872603', 'symbol': 'BTCUSDT', 'status': 'NEW', 'clientOrderId': 'Y0FtBxRqqdYAcm3xE2KuOG', 'price': '0', 'avgPrice': '0.00000', 'origQty': '0.001', 'executedQty': '0', 'cumQty': '0', 'cumQuote': '0', 'timeInForce': 'GTC', 'type': 'STOP_MARKET', 'reduceOnly': True, 'closePosition': False, 'side': 'SELL', 'positionSide': 'LONG', 'stopPrice': '23085', 'workingType': 'CONTRACT_PRICE', 'priceProtect': False, 'origType': 'STOP_MARKET', 'updateTime': '1674856724529'}, 'id': '112705872603', 'clientOrderId': 'Y0FtBxRqqdYAcm3xE2KuOG', 'timestamp': 1674856724529, 'datetime': '2023-01-27T21:58:44.529Z', 'lastTradeTimestamp': None, 'symbol': 'BTC/USDT:USDT', 'type': 'stop_market', 'timeInForce': 'GTC', 'postOnly': False, 'reduceOnly': True, 'side': 'sell', 'price': None, 'triggerPrice': 23085.0, 'amount': 0.001, 'cost': 0.0, 'average': None, 'filled': 0.0, 'remaining': 0.001, 'status': 'open', 'fee': None, 'trades': [], 'fees': []}
+        {'info': {'orderId': '112705873331', 'symbol': 'BTCUSDT', 'status': 'NEW', 'clientOrderId': 'c0defErLP4JbfcjIJtN7Fl', 'price': '0', 'avgPrice': '0.00000', 'origQty': '0.001', 'executedQty': '0', 'cumQty': '0', 'cumQuote': '0', 'timeInForce': 'GTC', 'type': 'TAKE_PROFIT_MARKET', 'reduceOnly': True, 'closePosition': False, 'side': 'SELL', 'positionSide': 'LONG', 'stopPrice': '23095', 'workingType': 'CONTRACT_PRICE', 'priceProtect': False, 'origType': 'TAKE_PROFIT_MARKET', 'updateTime': '1674856724737'}, 'id': '112705873331', 'clientOrderId': 'c0defErLP4JbfcjIJtN7Fl', 'timestamp': 1674856724737, 'datetime': '2023-01-27T21:58:44.737Z', 'lastTradeTimestamp': None, 'symbol': 'BTC/USDT:USDT', 'type': 'take_profit_market', 'timeInForce': 'GTC', 'postOnly': False, 'reduceOnly': True, 'side': 'sell', 'price': None, 'triggerPrice': 23095.0, 'amount': 0.001, 'cost': 0.0, 'average': None, 'filled': 0.0, 'remaining': 0.001, 'status': 'open', 'fee': None, 'trades': [], 'fees': []}
+        나머지 주문이 취소되었습니다.
+        '''
+        ```
+    - 양방향 주문(Hedge Mode)
+        - 주문창 설정 부분에서 Preference 클릭후 Position Mode를 Hedge Mode로 설정해주어야함
+        - 코드가 전체적으로 달라짐. 잔고 조회, 주문 넣는 방식이 모두 변경됨.
+        - LONG = 포지션 오픈 : buy, 포지션 클로즈 : sell
+        - SHORT = 포지션 오픈 : sell, 포지션 클로즈 : buy
+        - 코드
+            ```python
+            symbol = 'BTC/USDT'
+            side = 'LONG' # SHORT -> stoploss 가격이 더 높아야함
+            amount = 0.0001 # 레버리지가 적용되어서 이 수량만큼 buy or sell 적용
+            price = None
+            stopLossPrice = 22900
+            takeProfitPrice = 23200
+
+            # 방어 코드
+            if side == 'LONG':
+                if stopLossPrice>takeProfitPrice:
+                    stopLossPrice, takeProfitPrice = takeProfitPrice, stopLossPrice
+            elif side == 'SHORT':
+                if stopLossPrice<takeProfitPrice:
+                    stopLossPrice, takeProfitPrice = takeProfitPrice, stopLossPrice
+                    
+            try:
+                if side == 'LONG':
+                    
+                    params = {
+                    'positionSide': side
+                    }
+                    order = exchange.create_market_buy_order(symbol, amount,params)
+
+                    params = {
+                        'stopPrice': stopLossPrice,
+                        'positionSide': side
+                    }
+                    stopLossOrder = exchange.create_order(symbol, 'STOP_MARKET', 'sell', amount, price, params)
+                    print(stopLossOrder)
+
+
+                    params = {
+                        'stopPrice': takeProfitPrice,
+                        'positionSide': side,
+                    }
+
+                    takeProfitOrder = exchange.create_order(symbol, 'TAKE_PROFIT_MARKET', 'sell', amount, price, params)
+                    print(takeProfitOrder)
+                    
+                elif side == 'SHORT':
+                    params = {
+                    'positionSide': side
+                    }
+                    order = exchange.create_market_sell_order(symbol, amount,params)
+
+
+                    params = {
+                        'stopPrice': stopLossPrice,
+                        'positionSide': side
+                    }
+                    stopLossOrder = exchange.create_order(symbol, 'STOP_MARKET', 'buy', amount, price, params)
+                    print(stopLossOrder)
+
+
+                    params = {
+                        'stopPrice': takeProfitPrice,
+                        'positionSide': side,
+                    }
+
+                    takeProfitOrder = exchange.create_order(symbol, 'TAKE_PROFIT_MARKET', 'buy', amount, price, params)
+                    print(takeProfitOrder)
+
+            except Exception as e:
+                print(type(e).__name__, str(e))
+            ```
+        - 양방향일때 잔고 얻어오기
+            ```python
+            balance = exchange.fetch_balance()
+            positions = balance['info']['positions']
+
+            for position in positions:
+                if position['symbol']=='BTCUSDT' and position['positionSide']=='LONG':
+                    print('long',position)
+                elif position['symbol']=='BTCUSDT' and position['positionSide']=='SHORT':
+                    print('short',position)
+            '''
+            long {'symbol': 'BTCUSDT', 'initialMargin': '23.15000000', 'maintMargin': '0.09260000', 'unrealizedProfit': '0.00600000', 'positionInitialMargin': '23.15000000', 'openOrderInitialMargin': '0', 'leverage': '1', 'isolated': False, 'entryPrice': '23144.0', 'maxNotional': '5.0E8', 'positionSide': 'LONG', 'positionAmt': '0.001', 'notional': '23.15000000', 'isolatedWallet': '0', 'updateTime': '1674854501402', 'bidNotional': '0', 'askNotional': '0'}
+            short {'symbol': 'BTCUSDT', 'initialMargin': '23.15000000', 'maintMargin': '0.09260000', 'unrealizedProfit': '-0.00680000', 'positionInitialMargin': '23.15000000', 'openOrderInitialMargin': '0', 'leverage': '1', 'isolated': False, 'entryPrice': '23143.2', 'maxNotional': '5.0E8', 'positionSide': 'SHORT', 'positionAmt': '-0.001', 'notional': '-23.15000000', 'isolatedWallet': '0', 'updateTime': '1674854494516', 'bidNotional': '0', 'askNotional': '0'}
+            '''
+            ```
+            (차이점은 양방향이 아니라면 positionSide가 BOTH로 나옴)
+
 #### References
 - https://wikidocs.net/178885
 - https://github.com/ccxt/ccxt/tree/master/examples/py
+- https://blog.naver.com/zacra/222662884649
 
 ---
 
