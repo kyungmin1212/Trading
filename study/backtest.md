@@ -39,6 +39,8 @@
         - `conda install -c conda-forge bayesian-optimization`
     - 코드
         ```python
+        from bayes_opt import BayesianOptimization
+        
          # x가 2일때 y가 1일때 최댓값 1을 가지는 함수 예시
         def black_box_function(x, y):
             return -(x-2) ** 2 - (y - 1) ** 2 + 1
