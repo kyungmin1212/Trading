@@ -4,7 +4,7 @@
 - [Timestamp를 시간으로 변경하기(밀리세컨드)](#2)
 - [TA Library(Technical Analysis)](#3)
 - [Binance API (ccxt)](#4)
-
+- [잔고 대비 구매 수량 계산하기](#5)
 ---
 ## #1
 
@@ -844,7 +844,7 @@
             ```python
             symbol = 'BTC/USDT'
             side = 'LONG' # SHORT -> stoploss 가격이 더 높아야함
-            amount = 0.0001 # 레버리지가 적용되어서 이 수량만큼 buy or sell 적용
+            amount = 0.001 # 레버리지가 적용되어서 이 수량만큼 buy or sell 적용
             price = None
             stopLossPrice = 22900
             takeProfitPrice = 23200
@@ -934,8 +934,7 @@
 ## #5
 
 ### 잔고 대비 구매 수량 계산하기
-- https://www.binance.com/en/trade-rule 에서 USDT Markets의 Minimum Trade Amount 확인
-- BTC/USDT 는 0.00001 BTC 이므로 0.00001 미만의 수량은 거래가 진행이 안됨!
+- BTC/USDT 는 최소 구매 수량이 0.001 (이 수량은 바이낸스 웹페이지에서 open 부분에서 Size에 값을 입력하면 Minimum Qty가 나옴)
 - 잔고 대비 10퍼센트 거래하는 함수 예시(leverage를 고려 안함)
     ```python
     import math
@@ -943,7 +942,7 @@
     def cal_amount(usdt_balance,cur_price,portion):
         portion = portion
         usdt_trade = usdt_balance * portion
-        amount = math.floor((usdt_trade*100000)/cur_price)/100000 # 최소 단위가 0.00001 BTC이므로
+        amount = math.floor((usdt_trade*1000)/cur_price)/1000 # 최소 단위가 0.001 BTC이므로
         return amount
 
     # usdt 잔고 조회
@@ -977,11 +976,11 @@
         :params float cur_price : 현재 시점 가격
         :params float portion : 자산대비 구매비율
         :params int leverage : 레버리지(1이상, 1이면 그냥 자기 자산만으로 거래)
-        :return amount ex) BTC/USDT라면 0.00346 (단위 BTC)
+        :return amount ex) BTC/USDT라면 0.003 (단위 BTC)
         :rtype float
         """
         usdt_trade = usdt_balance*leverage * portion
-        amount = math.floor((usdt_trade*100000)/cur_price)/100000 # 최소 단위가 0.00001 BTC이므로
+        amount = math.floor((usdt_trade*1000)/cur_price)/1000 # 최소 단위가 0.001 BTC이므로
         return amount
 
     # usdt 잔고 조회
