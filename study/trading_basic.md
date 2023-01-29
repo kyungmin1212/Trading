@@ -240,6 +240,30 @@
     make_csv_data(coin_name= 'BTC/USDT', period= '1m', start_time= '2022-12-01 00:00:00', end_time= '2023-01-01 00:00:00')
     ```
 
+- 데이터 무결성 체크
+    - volume이 0인 부분 체크
+        `df[df['volume']==0]`    
+        ![](./img/img16.jpg)    
+        - volume이 0인 부분
+            - volume이 0인 부분이 125개 존재. 이부분은 백테스팅할때 제외시켜줘야함.
+            - 2020-09-27 20:13:00 ~ 2020-09-27 20:14:59
+            - 2021-03-02 10:01:00 ~ 2021-03-02 10:59:59
+            - 2022-05-02 07:26:00 ~ 2022-05-02 07:54:59
+            - 2022-05-29 01:40:00 ~ 2022-05-29 02:14:59
+    - 데이터 연속성 체크(1분봉 연속성)
+        ```python
+        df['before_datetime']=df['datetime'].shift(1)
+        df=df[1:]
+        df['datetime'] = pd.to_datetime(df['datetime'], format='%Y-%m-%d %H:%M:%S')
+        df['before_datetime'] = pd.to_datetime(df['before_datetime'], format='%Y-%m-%d %H:%M:%S')
+
+        import datetime
+        df[df['datetime']!=df['next_datetime']+datetime.timedelta(minutes = 1)]
+        '''
+        결과 1분봉은 연속되지 않는 데이터가 없음. 무조건 전부 연속적인 데이터
+        '''
+        ```
+
 #### References
 - https://www.inflearn.com/course/%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%84%A0%EB%AC%BC-%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%94%A9/dashboard
 - https://wikidocs.net/120392
