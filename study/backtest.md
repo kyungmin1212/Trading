@@ -81,7 +81,7 @@
         def black_box_function(x, y):
             return -(x-2) ** 2 - (y - 1) ** 2 + 1
         pbounds = {'x':(2,4),'y':(-3,3)}
-
+        # 2<=x<=4 , -3<=y<=3 양쪽 둘다 포함.
         optimizer = BayesianOptimization(
             f = black_box_function,
             pbounds = pbounds,
@@ -198,6 +198,11 @@
             n_iter=100
         )
         ```
+- optuna
+    - https://github.com/kyungmin1212/Data_Science/blob/main/study/etc.md#1 참고
+    - 다양한 알고리즘을 통해 최적화 방법을 제공
+    - 예시 코드 : https://github.com/kyungmin1212/Trading/blob/main/code/rev_trend_backtest_1m.ipynb
+
 #### References
 - https://github.com/fmfn/BayesianOptimization/blob/master/examples/advanced-tour.ipynb
 ---
@@ -287,5 +292,14 @@
         - 손절 : 구매 가격으로부터 손절 퍼센트가 되면 손절
 
 - 코드
+    - https://github.com/kyungmin1212/Trading/blob/main/code/rev_trend_backtest_1m.ipynb
 
+- 결론
+    - optuna를 통해 최적화 파라미터를 찾으면 큰 상승과 하락이 있는 장('BTCUSDT_1m_2021-03-03-00-00-00_2022-05-01-23_59_00')에서는 우상향적으로 수익을 내는 성공적인 결과가 나옴 (약 1년동안 80% 수익 발생)
+        ![](./img/img17.jpg)    
+        - 1000usdt 시작 기준 -> revenue:825.8381415726429 open_tot_cnt:1827 (전체 데이터는 약 600000건, 약 3000분에 1 포지션 오픈)
+    - 하지만 최적화된 결과를 바탕으로 횡보하는 장(또는 변동성이 작은 장)(BTCUSDT_1m_2022-06-01-00-00-00_2022-12-31-23_59_00)에서는 거래수도 많이 줄어들고 수익률도 약 6개월간 -3프로 정도 손실 발생
+        ![](./img/img18.jpg)    
+        - 1000usdt 시작 기준 -> revenue:-27.735264085701285 open_tot_cnt:608 (전체 데이터는 약 300000건, 약 5000분에 1 포지션 오픈)
+    - 일정 수익률과 일정 손실률이 정해져 있는 경우는 가격 변동폭에 클때와 작을때에 따라 너무 극명하게 차이가 발생함. 따라서 일정 수익률과 일정 손실률을 정해두기 보다는 특정 지표를 기준으로 매수 매도를 진행하는 방법을 찾으면 더 좋을것 같음.
 ---
