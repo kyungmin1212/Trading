@@ -240,6 +240,134 @@
     make_csv_data(coin_name= 'BTC/USDT', period= '1m', start_time= '2022-12-01 00:00:00', end_time= '2023-01-01 00:00:00')
     ```
 
+- 크롤링을 이용하여 초단위 데이터 수집 하기
+    ```python
+    import time
+    import datetime
+    import pandas as pd
+    import requests
+    from io import BytesIO
+
+    def date_to_timestamp(date,utc=False):
+    """
+    str형태의 date를 timestamp로 만들어주기
+    :params (str or datetime) date : '%Y-%m-%d %H:%M:%S'형태의 데이터. ex)'2023-01-18 23:00:00'
+    :params bool utc : True로 설정할시에 date를 utc 시간이라고 생각
+    :return timestamp시간(단위 ms) ex)1674050400000
+    :rtype int
+    
+    ex) date_to_timestamp('2023-01-18 23:00:00') -> 1674050400000
+    """
+    if type(date) == str: # str인 경우 datetime으로 변환해주기
+        dt = datetime.datetime.strptime(date,'%Y-%m-%d %H:%M:%S')
+    else: # datetime으로 들어온경우
+        dt = date
+        
+    # time.mktime은 local 타임 기준으로 timestamp를 변경함. 따라서 utc일 경우 +9시간해서 한국시간으로 설정해줘야함
+    if utc:
+        dt = date + datetime.timedelta(hours = 9)
+    
+    ts = time.mktime(dt.timetuple()) 
+    
+    return int(ts*1000)
+
+    now_timestamp = date_to_timestamp('2023-01-30 20:14:00') # 한국시간 넣으면 알아서 전세계 공통 timestamp로 변경해줌
+    print(now_timestamp)
+    '''
+    1675077240000
+    '''
+    ```
+    ```python
+    def make_second_csv_data(coin_name,start_time,end_time):
+        """
+        coin이름, 시작, 끝 시간을 지정해주면 그 기간까지의 1s 데이터를 수집하여 csv 파일로 반환
+        :params str coin_name : 코인이름 ex)"BTCUSDT"
+        :params str start_time : 수집 시작 시간 ex) '2022-01-01 00:00:00' (한국시간기준)
+        :params str end_time : 수집 끝 시간 ex) '2023-01-01 00:00:00' (한국시간기준)
+        :return None
+        :rtype None
+        
+        f'{coin_name}_1s_{start_time}_{end_time}.csv' 파일로 저장됨
+        """
+        
+        
+        start_timestamp = date_to_timestamp(start_time) # str -> timestamp
+        
+        end_time = datetime.datetime.strptime(end_time,'%Y-%m-%d %H:%M:%S') # str -> datetime
+        
+        url = f'https://www.binance.com/api/v3/uiKlines?limit=1000&symbol={coin_name}&interval=1s&startTime={start_timestamp}'
+        webpage = requests.get(url)
+
+        df = pd.read_json(BytesIO(webpage.content))
+        df = df[[0,1,2,3,4,5]]
+        df.rename(columns={0:'datetime',1:'open',2:'high',3:'low',4:'close',5:'volume'},inplace=True)
+        df['datetime'] = pd.to_datetime(df['datetime'], unit='ms') + datetime.timedelta(hours = 9)
+        df.set_index('datetime', inplace=True)
+        
+        while len(df)==0:  # 정기 점검이 있는 시간대에는 조회를 해도 결과가 나오지 않음. 1000개씩 조회되므로 데이터가 조회될때까지 500개씩 건너뛰기
+            
+            start_timestamp=date_to_timestamp(datetime.datetime.strptime(start_time,'%Y-%m-%d %H:%M:%S') + datetime.timedelta(senconds=1000))
+        
+            url = f'https://www.binance.com/api/v3/uiKlines?limit=1000&symbol={coin_name}&interval=1s&startTime={start_timestamp}'
+            webpage = requests.get(url)
+
+            df = pd.read_json(BytesIO(webpage.content))
+            df = df[[0,1,2,3,4,5]]
+            df.rename(columns={0:'datetime',1:'open',2:'high',3:'low',4:'close',5:'volume'},inplace=True)
+            df['datetime'] = pd.to_datetime(df['datetime'], unit='ms') + datetime.timedelta(hours = 9)
+            df.set_index('datetime', inplace=True)
+        total_df = df
+        
+        check_count = 0
+        
+        while True:
+            
+            check_count+=1
+            if check_count%10 == 0:
+                print(total_df.index[-1])
+            
+            if end_time <= df.index[-1]:
+                break
+            
+            time_later = df.index[-1] + datetime.timedelta(seconds=1000)
+            
+            time_later = date_to_timestamp(time_later)
+            url = f'https://www.binance.com/api/v3/uiKlines?limit=1000&symbol={coin_name}&interval=1s&startTime={time_later}'
+            webpage = requests.get(url)
+
+            df = pd.read_json(BytesIO(webpage.content))
+            df = df[[0,1,2,3,4,5]]
+            df.rename(columns={0:'datetime',1:'open',2:'high',3:'low',4:'close',5:'volume'},inplace=True)
+            df['datetime'] = pd.to_datetime(df['datetime'], unit='ms') + datetime.timedelta(hours = 9)
+            df.set_index('datetime', inplace=True)
+            
+            while len(df)==0:  # 정기 점검이 있는 시간대에는 조회를 해도 결과가 나오지 않음. 1000개씩 조회되므로 데이터가 조회될때까지 500개씩 건너뛰기
+                time_later=datetime.datetime.strptime(time_later,'%Y-%m-%d %H:%M:%S') + datetime.timedelta(senconds=1000) 
+                time_later = date_to_timestamp(time_later)
+                url = f'https://www.binance.com/api/v3/uiKlines?limit=1000&symbol={coin_name}&interval=1s&startTime={time_later}'
+                webpage = requests.get(url)
+
+                df = pd.read_json(BytesIO(webpage.content))
+                df = df[[0,1,2,3,4,5]]
+                df.rename(columns={0:'datetime',1:'open',2:'high',3:'low',4:'close',5:'volume'},inplace=True)
+                df['datetime'] = pd.to_datetime(df['datetime'], unit='ms') + datetime.timedelta(hours = 9)
+                df.set_index('datetime', inplace=True)
+                
+            total_df = pd.concat([total_df,df])
+            
+            time.sleep(1)
+        
+        total_df = total_df[:end_time]
+        
+        coin_name = "".join(coin_name.split("/"))
+        s_time = "-".join("-".join(str(start_time).split(" ")).split(":"))
+        e_time = "_".join("-".join(str(end_time).split(" ")).split(":"))
+        total_df.to_csv(f'./{coin_name}_1s_{s_time}_{e_time}.csv')
+
+    make_second_csv_data('BTCUSDT','2023-01-29 23:00:00','2023-01-30 00:00:00')
+    ```
+
+
 - 데이터 무결성 체크
     - volume이 0인 부분 체크
         `df[df['volume']==0]`    
