@@ -1,14 +1,15 @@
 ## Table of Contents
 
-- [데이터 수집](#1)
+- [바이낸스 데이터 수집](#1)
 - [Timestamp를 시간으로 변경하기(밀리세컨드)](#2)
 - [TA Library(Technical Analysis)](#3)
 - [Binance API (ccxt)](#4)
 - [잔고 대비 구매 수량 계산하기](#5)
+- [바이낸스 호가 데이터 수집하기](#6)
 ---
 ## #1
 
-### 데이터 수집
+### 바이낸스 데이터 수집
 - 크롤링 이용
     - 크롤링을 위하여 크롬 개발자 툴 사용    
         ![](./img/img1.jpg)    
@@ -366,7 +367,7 @@
 
     make_second_csv_data('BTCUSDT','2023-01-29 23:00:00','2023-01-30 00:00:00')
     ```
-
+    - 코드 : https://github.com/kyungmin1212/Trading/blob/main/code/data_collect_second.ipynb
 
 - 데이터 무결성 체크
     - volume이 0인 부분 체크
@@ -391,6 +392,10 @@
         결과 1분봉은 연속되지 않는 데이터가 없음. 무조건 전부 연속적인 데이터
         '''
         ```
+
+- ccxt를 이용하여 호가 데이터 수집하기
+    - 코드 : https://github.com/kyungmin1212/Trading/blob/main/code/collect_orderbook.ipynb
+
 
 #### References
 - https://www.inflearn.com/course/%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%84%A0%EB%AC%BC-%EC%95%8C%EA%B3%A0%EB%A6%AC%EC%A6%98-%ED%8A%B8%EB%A0%88%EC%9D%B4%EB%94%A9/dashboard
@@ -1157,5 +1162,7 @@
 #### References
 - https://www.binance.com/en/trade-rule
 - https://learningspoons.com/course/detail/pythonforfinance/
+
 ---
+
 
