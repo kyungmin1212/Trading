@@ -545,12 +545,13 @@
     ```
 - RSI
     ```python
-    from ta.trend import MACD
+    # RSI
 
-    macd = MACD(df['close'], window_slow=26, window_fast=12, window_sign=9)
-    df['macd'] = macd.macd()
-    df['macd_s'] = macd.macd_signal()
-    df['macd_d'] = macd.macd_diff()
+    from ta.momentum import RSIIndicator
+
+    df['rsi6'] = RSIIndicator(df['close'], window=6).rsi()
+    df['rsi12'] = RSIIndicator(df['close'], window=12).rsi()
+    df['rsi24'] = RSIIndicator(df['close'], window=24).rsi()
     df.head(10)
     ```
 - StochRSI 
