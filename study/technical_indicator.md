@@ -104,6 +104,190 @@
     - n_down : 어떤 기간 동안 바로 이전의 봉 대비 다음 봉이 하락했을 경우, 그 하락 정도를 평균낸 값    
     ![](./img/img9.jpg)    
     ![](./img/img10.jpg)    
+
+    - 하지만 실제로 ta.lib 나 실제 tradingview에서 rsi 를 관찰하게 되면 위와 같은 결과가 나오지 않음.
+    - 실제로 ta.lib나 tradingview에 있는 함수를 뜯어보게 되면 단순히 평균을 내서 더해주는 것이 아닌 rma 나 지수가중함수등 최근 값에 가중치를 부여할수 있는 함수를 통해 연산이 진행되고 있음
+        ![](./img/img19.jpg)    
+        ![](./img/img20.jpg)    
+    - 단순히 계산한 경우
+        ```python
+        df_short = pd.read_csv('BTCUSDT_1m_2023-02-04-07-20-00_2023-02-04-07_40_00.csv')
+
+        df_short['change'] = df_short['close'].diff(1)
+        df_short = df_short[1:]
+        df_test = df_short.iloc[:20]
+
+        p = 14
+
+        for i in range(p-1,len(df_test)):
+            new_df = df_test.iloc[i-(p-1):i]
+            plus_value = sum(new_df.where(new_df['change']>0,0.0)['change'])
+            minus_value = -sum(new_df.where(new_df['change']<0,0.0)['change'])
+
+            t = df_test.iloc[i:i+1]['datetime'].values[0]
+            open = round(df_test.iloc[i:i+1]['open'].values[0],4) 
+            high= round(df_test.iloc[i:i+1]['high'].values[0],4)   
+            low = round(df_test.iloc[i:i+1]['low'].values[0],4)  
+            close = round(df_test.iloc[i:i+1]['close'].values[0],4)  
+            
+            
+            if close>=open:
+                rsi_close = (plus_value+close-open)/(plus_value+close-open+minus_value)
+                
+            else:
+                rsi_close = plus_value/(plus_value+(open-close)+minus_value)
+            
+            print(t,':',rsi_close*100)
+        '''
+        2023-02-04 07:34:00 : 62.159024956471484
+        2023-02-04 07:35:00 : 60.77097505668926
+        2023-02-04 07:36:00 : 52.72945410917777
+        2023-02-04 07:37:00 : 45.90264941466441
+        2023-02-04 07:38:00 : 46.55697745277297
+        2023-02-04 07:39:00 : 53.092425295344455
+        2023-02-04 07:40:00 : 58.996138996140125
+        '''
+        ```
+    - ta library를 이용한 경우
+        ```python
+        df_short = pd.read_csv('BTCUSDT_1m_2023-02-04-07-20-00_2023-02-04-07_40_00.csv')
+        df_short['rsi14'] = RSIIndicator(df_short['close'], window=14).rsi()
+        df_short = df_short.dropna()
+        print(df_short[1:][['datetime','rsi14']])
+        '''
+                    datetime      rsi14
+        14  2023-02-04 07:34:00  67.519066
+        15  2023-02-04 07:35:00  63.731459
+        16  2023-02-04 07:36:00  58.560860
+        17  2023-02-04 07:37:00  54.130112
+        18  2023-02-04 07:38:00  55.316454
+        19  2023-02-04 07:39:00  54.222824
+        20  2023-02-04 07:40:00  54.167905
+        '''
+        ```
+        - ta library도 tradingview와는 미세하게 차이가있음 (이차이는 예시 데이터의 기간이 짧기때문임. 만약 예시데이터의 길이가 길어질수록 tradingview의 rsi와 거의 일치하게 됨)
+            ```python
+            df_short = pd.read_csv('BTCUSDT_1m_2022-08-04-07-20-00_2023-02-04-09_00_00.csv')
+            df_short['rsi14'] = RSIIndicator(df_short['close'], window=14).rsi()
+            df_short = df_short.dropna()
+            print(df_short[-87:-80][['datetime','rsi14']])
+            '''
+                            datetime      rsi14
+            264974  2023-02-04 07:34:00  66.484070
+            264975  2023-02-04 07:35:00  63.209847
+            264976  2023-02-04 07:36:00  58.662617
+            264977  2023-02-04 07:37:00  54.693031
+            264978  2023-02-04 07:38:00  55.743903
+            264979  2023-02-04 07:39:00  54.753521
+            264980  2023-02-04 07:40:00  54.703680
+            '''
+            ```
+        - 한 3시간 정도의 데이터만 있더라도 tradingview의 rsi와 거의 일치해짐
+            ```python
+            df_short = pd.read_csv('BTCUSDT_1m_2023-02-04-04-41-00_2023-02-04-07_40_00.csv')
+            df_short['rsi14'] = RSIIndicator(df_short['close'], window=14).rsi()
+            df_short = df_short.dropna()
+            print(df_short[['datetime','rsi14']][-7:])
+            '''
+                        datetime      rsi14
+            173  2023-02-04 07:34:00  66.484102
+            174  2023-02-04 07:35:00  63.209870
+            175  2023-02-04 07:36:00  58.662628
+            176  2023-02-04 07:37:00  54.693033
+            177  2023-02-04 07:38:00  55.743906
+            178  2023-02-04 07:39:00  54.753522
+            179  2023-02-04 07:40:00  54.703681
+            '''
+            ```
+    - tradingview 값
+        ```python
+        '''
+                    datetime      rsi14
+        14  2023-02-04 07:34:00  66.48
+        15  2023-02-04 07:35:00  63.21
+        16  2023-02-04 07:36:00  58.66
+        17  2023-02-04 07:37:00  54.69
+        18  2023-02-04 07:38:00  55.74
+        19  2023-02-04 07:39:00  54.75
+        20  2023-02-04 07:40:00  54.70
+        '''
+        ```
+    - 단순 계산은 최근값에 대한 가중치가 없기때문에 14일전의 값의 사라질때마다 그 14일전의 값에 영향을 많이 받아서 최근 값을 잘 반영하지 못하게 됨
+    - ta library에 있는 값을 생으로 구현해보기
+        - 실제로 자동매매를 만들게 되면은 실시간으로 현재 타임스텝의 값에 따라 rsi값이 변경되게 됨. 따라서 현재 타임스텝값이 과매수지점과 과매도지점을 넘는 가격을 정확하게 알아야지만 그 순간에 바로 포지션 오픈이 가능함
+        - 판다스의 ewm 함수 사용 (https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.ewm.html)
+        - adjust=True 는 데이터가 적을때 사용, 데이터가 많게되면 분모가 수렴하여 adjust=False를 사용해서도 연산가능.
+        - 정확히 일치하게 됨
+        ```python
+        df = pd.read_csv('BTCUSDT_1m_2022-08-04-07-20-00_2023-02-04-09_00_00.csv')
+
+        df['rsi14'] = RSIIndicator(df['close'], window=14).rsi()
+        df_before = df[:-87] # 2023-02-04 07:33 까지의 데이터를 이용해 2023-02-04 07:34부터의 rsi 직접 구해보기
+
+        df_before_close = df_before['close']
+
+        df_before_close_diff = df_before_close.diff(1)
+        df_before_close_diff = df_before_close_diff[1:]
+
+        up = df_before_close_diff.where(df_before_close_diff>0,0.0)
+        down = -df_before_close_diff.where(df_before_close_diff<0,0.0)
+
+        before_emaup = up.ewm(
+                alpha= 1/14, min_periods=14, adjust=False
+            ).mean().iloc[-1]
+
+        before_emadn = down.ewm(
+                alpha= 1/14, min_periods=14, adjust=False
+            ).mean().iloc[-1]
+
+
+        alpha = 1/14 # 1/rsi_period
+
+        for i in range(87):
+            t = df.iloc[-87+i]['datetime']
+            before_close = df.iloc[-88+i]['close']
+            close = df.iloc[-87+i]['close']
+            
+            
+            if before_close<close: # 종가 상승
+                now_emaup = (1-alpha)*before_emaup + alpha*(close-before_close)
+                now_emadn = (1-alpha)*before_emadn + alpha*0
+
+            else: # 종가 하락
+                now_emaup = (1-alpha)*before_emaup + alpha*0
+                now_emadn = (1-alpha)*before_emadn + alpha*(before_close-close) 
+            
+            relative_strength = now_emaup / now_emadn
+            print(t,100 - (100 / (1 + relative_strength)))    
+            
+            before_emaup = now_emaup
+            before_emadn = now_emadn
+        '''
+        2023-02-04 07:34:00 66.48406964795234
+        2023-02-04 07:35:00 63.20984745173113
+        2023-02-04 07:36:00 58.662617453768306
+        2023-02-04 07:37:00 54.69303107805009
+        2023-02-04 07:38:00 55.74390256551348
+        2023-02-04 07:39:00 54.753520809912615
+        2023-02-04 07:40:00 54.70367975897705
+        ,,,
+        2023-02-04 08:56:00 47.63034208345596
+        2023-02-04 08:57:00 45.96390252179148
+        2023-02-04 08:58:00 44.9119915722583
+        2023-02-04 08:59:00 44.06211324271536
+        2023-02-04 09:00:00 41.0851627919295
+        '''
+        ```
+        - 참고 실제 rsi 값
+            ```python
+            '''
+            265056  2023-02-04 08:56:00  47.630342
+            265057  2023-02-04 08:57:00  45.963903
+            265058  2023-02-04 08:58:00  44.911992
+            265059  2023-02-04 08:59:00  44.062113
+            265060  2023-02-04 09:00:00  41.085163
+            '''
+            ```
 - 매매방법
     - RSI가 30보다 낮을 때(과매도 상태) 사서 RSI가 70보다 높을 때(과매수 상태) 팔기.
     - 웬만해서는 잘 맞지만 RSI 30 밑에서 샀는데 RSI 가 70위로 가지않고 계속해서 하락한다면 계속 손실을 보게 됨
@@ -112,7 +296,8 @@
 
 #### References
 - https://contents.premium.naver.com/usa/nasdaq/contents/220417154258594IW
-
+- https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.ewm.html
+- https://github.com/bukosabino/ta/blob/master/ta/momentum.py
 ---
 
 ## #6
