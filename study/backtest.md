@@ -386,7 +386,7 @@
         - 손실 퍼센트가 되면 최대 n번까지 추가 포지션 오픈을 한 뒤 n+1번째에서 손절
 
 - rsi upper 지점과 rsi lower 지점 가격 찾기    
-    ![](./img/img18.jpg)    
+    ![](./img/img21.jpg)    
 
 - 코드
     - https://github.com/kyungmin1212/Trading/blob/main/code/rsi_backtest.ipynb
